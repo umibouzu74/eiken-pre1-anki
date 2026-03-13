@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from './AuthContext'
 
@@ -14,8 +14,12 @@ export default function LoginPage() {
   const { loginStudent, loginTeacher, student, teacher } = useAuth()
 
   // Redirect if already logged in
-  if (student) { navigate('/student', { replace: true }); return null }
-  if (teacher) { navigate('/teacher', { replace: true }); return null }
+  useEffect(() => {
+    if (student) navigate('/student', { replace: true })
+    else if (teacher) navigate('/teacher', { replace: true })
+  }, [student, teacher, navigate])
+
+  if (student || teacher) return null
 
   async function handleStudentLogin(e) {
     e.preventDefault()
