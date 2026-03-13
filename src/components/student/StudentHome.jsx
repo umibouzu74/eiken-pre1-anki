@@ -10,9 +10,10 @@ const TOTAL_UNITS = Math.ceil(words.length / UNIT_SIZE)
 export default function StudentHome() {
   const navigate = useNavigate()
   const { student, logout } = useAuth()
-  const { getStats, loading } = useProgress()
+  const { getStats, getDueWordIds, getWeakWordIds, loading } = useProgress()
   const { assignments, loading: assignLoading } = useAssignments(student?.classCode)
   const stats = getStats()
+  const weakWordIds = getWeakWordIds()
   const activeAssignments = assignments.filter(a => a.active)
 
   if (loading) {
@@ -38,7 +39,7 @@ export default function StudentHome() {
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-3 gap-3 mb-8">
+        <div className="grid grid-cols-3 gap-3 mb-4">
           <div className="bg-white rounded-xl p-4 text-center shadow-sm">
             <div className="text-2xl font-bold text-green-500">{stats.mastered}</div>
             <div className="text-[11px] text-gray-400 mt-1">覚えた</div>
@@ -52,6 +53,54 @@ export default function StudentHome() {
             <div className="text-[11px] text-gray-400 mt-1">未学習</div>
           </div>
         </div>
+
+        {/* Review reminder */}
+        {stats.dueForReview > 0 && (
+          <div
+            onClick={() => navigate('/student/flashcard?mode=review')}
+            className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-8 cursor-pointer
+              hover:-translate-y-0.5 hover:shadow-md active:scale-[0.98] transition-all"
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-sm font-semibold text-amber-800">
+                  復習が必要な単語があります
+                </div>
+                <div className="text-xs text-amber-600 mt-0.5">
+                  {stats.dueForReview}語の復習期日が来ています
+                </div>
+              </div>
+              <div className="text-2xl font-bold text-amber-500">{stats.dueForReview}</div>
+            </div>
+          </div>
+        )}
+
+        {stats.dueForReview === 0 && (stats.mastered > 0 || stats.learning > 0) && (
+          <div className="bg-green-50 border border-green-200 rounded-xl px-4 py-3 mb-4 text-center">
+            <div className="text-xs text-green-700">復習は全て完了しています</div>
+          </div>
+        )}
+
+        {/* Weak words */}
+        {weakWordIds.length > 0 && (
+          <div
+            onClick={() => navigate('/student/flashcard?mode=weak')}
+            className="bg-red-50 border border-red-200 rounded-xl p-4 mb-8 cursor-pointer
+              hover:-translate-y-0.5 hover:shadow-md active:scale-[0.98] transition-all"
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-sm font-semibold text-red-800">
+                  苦手な単語を集中練習
+                </div>
+                <div className="text-xs text-red-600 mt-0.5">
+                  正答率50%未満の単語が{weakWordIds.length}語あります
+                </div>
+              </div>
+              <div className="text-2xl font-bold text-red-400">{weakWordIds.length}</div>
+            </div>
+          </div>
+        )}
 
         {/* Assignments */}
         {!assignLoading && activeAssignments.length > 0 && (

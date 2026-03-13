@@ -52,11 +52,34 @@ export function isDueForReview(card) {
   return card.nextReview <= today
 }
 
+export const MASTERED_INTERVAL = 21
+
 /**
- * Get SRS status label
+ * Get SRS status label based on interval
  */
 export function getSRSStatus(card) {
   if (!card || card.repetitions === 0) return 'new'
-  if (card.interval >= 21) return 'mastered'
+  if (card.interval >= MASTERED_INTERVAL) return 'mastered'
   return 'learning'
+}
+
+/**
+ * Determine status after answering
+ * @param {number} quality - answer quality (0-3)
+ * @param {object} srs - updated SRS card
+ */
+export function getStatusAfterAnswer(quality, srs) {
+  if (quality < 2) return 'learning'
+  return srs.interval >= MASTERED_INTERVAL ? 'mastered' : 'learning'
+}
+
+/**
+ * Check if a word is "weak" (struggling) based on wrong/correct ratio
+ * A word is weak if it has been attempted 2+ times and wrong rate >= 50%
+ */
+export function isWeakWord(wordProgress) {
+  if (!wordProgress) return false
+  const total = (wordProgress.c || 0) + (wordProgress.w || 0)
+  if (total < 2) return false
+  return (wordProgress.w || 0) / total >= 0.5
 }
