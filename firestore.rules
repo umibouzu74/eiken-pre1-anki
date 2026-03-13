@@ -2,52 +2,58 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Teachers - only the teacher can read their own doc
+    // Helper: check if the requesting user is a registered teacher
+    function isTeacher() {
+      return request.auth != null
+        && exists(/databases/$(database)/documents/teachers/$(request.auth.uid));
+    }
+
+    // Teachers - only the teacher themselves can read their own doc
     match /teachers/{uid} {
       allow read: if request.auth != null && request.auth.uid == uid;
       allow write: if false; // Created manually via Firebase Console
     }
 
-    // Classes - anyone can read (to verify class code), only teachers can write
-    // Exception: authenticated users can increment studentCount on join
+    // Classes - anyone can read (needed to verify class code at login)
+    // Only teachers can create. Updates limited to teachers or studentCount increment.
     match /classes/{code} {
       allow read: if true;
-      allow create: if request.auth != null
-        && exists(/databases/$(database)/documents/teachers/$(request.auth.uid));
+      allow create: if isTeacher();
       allow update: if request.auth != null
-        && (exists(/databases/$(database)/documents/teachers/$(request.auth.uid))
+        && (isTeacher()
             || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['studentCount'])
                 && request.resource.data.studentCount == resource.data.studentCount + 1));
       allow delete: if false;
     }
 
-    // Students - authenticated users can create, owner can update
-    // Re-login after logout creates a new anonymous UID, so allow updates
-    // that only change firebaseUid and lastActiveAt (for UID reassignment)
+    // Students - authenticated users can read (needed for login query by classCode+name
+    // where the anonymous UID may have changed after logout/re-login).
+    // Authenticated users can create. Updates limited to owner, teacher, or UID reassignment.
     match /students/{id} {
       allow read: if request.auth != null;
       allow create: if request.auth != null;
       allow update: if request.auth != null
         && (resource.data.firebaseUid == request.auth.uid
-            || exists(/databases/$(database)/documents/teachers/$(request.auth.uid))
+            || isTeacher()
             || request.resource.data.diff(resource.data).affectedKeys()
                 .hasOnly(['firebaseUid', 'lastActiveAt']));
     }
 
-    // Progress - owner writes, teachers can read
+    // Progress - authenticated users can read (teachers view all students;
+    // students access via auto-generated IDs that don't match firebase UIDs).
+    // Write restricted to authenticated users.
     match /progress/{studentId} {
       allow read: if request.auth != null;
       allow write: if request.auth != null;
     }
 
-    // Assignments - teachers write, anyone authenticated can read
+    // Assignments - teachers manage, all authenticated users can read
     match /assignments/{id} {
       allow read: if request.auth != null;
-      allow create, update, delete: if request.auth != null
-        && exists(/databases/$(database)/documents/teachers/$(request.auth.uid));
+      allow create, update, delete: if isTeacher();
     }
 
-    // Results - students create, teachers read
+    // Results - authenticated users can read, only creation allowed (immutable records)
     match /results/{id} {
       allow read: if request.auth != null;
       allow create: if request.auth != null;

@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { doc, getDoc, collection, query, where, getDocs, orderBy } from 'firebase/firestore'
 import { db } from '../../lib/firebase'
 import { useAssignments } from '../../hooks/useAssignments'
+import { useToast } from '../Toast'
 
 export default function ClassDetail() {
   const { code } = useParams()
@@ -14,6 +15,7 @@ export default function ClassDetail() {
   const [sortBy, setSortBy] = useState('name') // 'name' | 'mastered' | 'lastActive'
   const [sortDir, setSortDir] = useState('asc')
   const { assignments } = useAssignments(code)
+  const toast = useToast()
 
   useEffect(() => {
     loadClassData()
@@ -47,6 +49,7 @@ export default function ClassDetail() {
       setProgressMap(pMap)
     } catch (err) {
       console.error('Failed to load class:', err)
+      toast('クラスデータの読み込みに失敗しました')
     } finally {
       setLoading(false)
     }
