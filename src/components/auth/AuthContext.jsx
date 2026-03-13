@@ -74,10 +74,14 @@ export function AuthProvider({ children }) {
         lastActiveAt: serverTimestamp(),
       }
       await setDoc(studentRef, studentData)
-      // Increment student count on class
-      await updateDoc(doc(db, 'classes', classCode), {
-        studentCount: increment(1)
-      })
+      // Increment student count on class (ignore permission errors for anonymous users)
+      try {
+        await updateDoc(doc(db, 'classes', classCode), {
+          studentCount: increment(1)
+        })
+      } catch (e) {
+        console.warn('Could not update studentCount:', e.message)
+      }
     } else {
       // Returning student → update UID and activity
       const existingDoc = snap.docs[0]
