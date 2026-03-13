@@ -70,7 +70,7 @@ export function getSRSStatus(card) {
  */
 export function getStatusAfterAnswer(quality, srs) {
   if (quality < 2) return 'learning'
-  return srs.interval >= MASTERED_INTERVAL ? 'mastered' : 'learning'
+  return 'mastered'
 }
 
 /**
