@@ -16,7 +16,7 @@ export default function Flashcard() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const { student } = useAuth()
-  const { updateWord, getWordProgress, getDueWordIds, getWeakWordIds } = useProgress()
+  const { updateWord, getWordProgress, getDueWordIds, getWeakWordIds, loading } = useProgress()
   const toast = useToast()
 
   const [phase, setPhase] = useState('select') // 'select' | 'study' | 'done'
@@ -31,6 +31,7 @@ export default function Flashcard() {
 
   // Auto-start if URL has range params or special mode
   useEffect(() => {
+    if (loading) return
     const mode = searchParams.get('mode')
     if (mode === 'review') {
       handleStartSpecial('review', getDueWordIds())
@@ -45,7 +46,7 @@ export default function Flashcard() {
     if (from && to) {
       handleStart(parseInt(from), parseInt(to), true, true)
     }
-  }, [])
+  }, [loading])
 
   function handleStartSpecial(mode, wordIds) {
     if (wordIds.length === 0) {
