@@ -6,12 +6,11 @@ import Flashcard from './components/student/Flashcard'
 import Quiz4 from './components/student/Quiz4'
 import QuizTyping from './components/student/QuizTyping'
 import Results from './components/student/Results'
-// Teacher pages (Phase 3)
-// import Dashboard from './components/teacher/Dashboard'
-// import ClassDetail from './components/teacher/ClassDetail'
-// import StudentDetail from './components/teacher/StudentDetail'
-// import AssignmentForm from './components/teacher/AssignmentForm'
-// import ExportCSV from './components/teacher/ExportCSV'
+import Dashboard from './components/teacher/Dashboard'
+import ClassDetail from './components/teacher/ClassDetail'
+import StudentDetail from './components/teacher/StudentDetail'
+import AssignmentForm from './components/teacher/AssignmentForm'
+import ExportCSV from './components/teacher/ExportCSV'
 
 function ProtectedStudent({ children }) {
   const { student } = useAuth()
@@ -47,8 +46,7 @@ export default function App() {
         <ProtectedStudent><Results /></ProtectedStudent>
       } />
 
-      {/* Teacher routes (Phase 3) */}
-      {/*
+      {/* Teacher routes */}
       <Route path="/teacher" element={
         <ProtectedTeacher><Dashboard /></ProtectedTeacher>
       } />
@@ -64,7 +62,6 @@ export default function App() {
       <Route path="/teacher/export" element={
         <ProtectedTeacher><ExportCSV /></ProtectedTeacher>
       } />
-      */}
 
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
