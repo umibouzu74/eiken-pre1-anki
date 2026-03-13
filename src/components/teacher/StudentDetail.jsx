@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { doc, getDoc, collection, query, where, orderBy, getDocs } from 'firebase/firestore'
 import { db } from '../../lib/firebase'
+import { useToast } from '../Toast'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
 import words from '../../data/words.json'
 
@@ -11,6 +12,7 @@ const TOTAL_UNITS = Math.ceil(words.length / UNIT_SIZE)
 export default function StudentDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const toast = useToast()
   const [student, setStudent] = useState(null)
   const [progress, setProgress] = useState({})
   const [results, setResults] = useState([])
@@ -44,6 +46,7 @@ export default function StudentDetail() {
       setResults(rSnap.docs.map(d => ({ id: d.id, ...d.data() })))
     } catch (err) {
       console.error('Failed to load student:', err)
+      toast('生徒データの読み込みに失敗しました')
     } finally {
       setLoading(false)
     }
@@ -57,13 +60,15 @@ export default function StudentDetail() {
     return <div className="min-h-screen flex items-center justify-center text-gray-400">生徒が見つかりません</div>
   }
 
-  const allWords = Object.values(progress)
-  const mastered = allWords.filter(w => w.s === 'mastered').length
-  const learning = allWords.filter(w => w.s === 'learning').length
-  const remaining = 1680 - mastered - learning
+  const { mastered, learning, remaining } = useMemo(() => {
+    const allWords = Object.values(progress)
+    const m = allWords.filter(w => w.s === 'mastered').length
+    const l = allWords.filter(w => w.s === 'learning').length
+    return { mastered: m, learning: l, remaining: 1680 - m - l }
+  }, [progress])
 
   // Unit progress data for chart
-  const unitData = Array.from({ length: TOTAL_UNITS }, (_, i) => {
+  const unitData = useMemo(() => Array.from({ length: TOTAL_UNITS }, (_, i) => {
     const unitNum = i + 1
     const start = (unitNum - 1) * UNIT_SIZE + 1
     const end = Math.min(unitNum * UNIT_SIZE, words.length)
@@ -79,17 +84,17 @@ export default function StudentDetail() {
       覚えた: unitMastered,
       学習中: unitLearning,
     }
-  })
+  }), [progress])
 
   // Weak words (high wrong count relative to total attempts)
-  const weakWords = Object.entries(progress)
+  const weakWords = useMemo(() => Object.entries(progress)
     .filter(([, v]) => (v.c + v.w) >= 2 && v.w / (v.c + v.w) > 0.4)
     .sort(([, a], [, b]) => (b.w / (b.c + b.w)) - (a.w / (a.c + a.w)))
     .slice(0, 20)
     .map(([wordId, v]) => {
       const word = words.find(w => w.i === Number(wordId))
       return { wordId, word, stats: v, errorRate: Math.round((v.w / (v.c + v.w)) * 100) }
-    })
+    }), [progress])
 
   const modeLabels = { flashcard: 'フラッシュカード', quiz4: '4択クイズ', quizType: 'タイピング' }
 

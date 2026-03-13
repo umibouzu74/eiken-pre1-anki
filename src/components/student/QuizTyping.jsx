@@ -2,29 +2,21 @@ import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useProgress } from '../../hooks/useProgress'
 import { updateSRS, createSRSCard } from '../../lib/srs'
+import { shuffle, getAnswer } from '../../lib/utils'
 import { doc, collection, setDoc, serverTimestamp } from 'firebase/firestore'
 import { db } from '../../lib/firebase'
 import { useAuth } from '../auth/AuthContext'
 import words from '../../data/words.json'
 import RangeSelector from './RangeSelector'
-
-function shuffle(arr) {
-  const a = [...arr]
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]]
-  }
-  return a
-}
-
-function getAnswer(w) {
-  return w.cj || w.w
-}
+import TopBar from '../TopBar'
+import ResultScreen from '../ResultScreen'
+import { useToast } from '../Toast'
 
 export default function QuizTyping() {
   const navigate = useNavigate()
   const { student } = useAuth()
   const { updateWord, getWordProgress } = useProgress()
+  const toast = useToast()
   const inputRef = useRef(null)
 
   const [phase, setPhase] = useState('select')
@@ -116,6 +108,7 @@ export default function QuizTyping() {
         })
       } catch (err) {
         console.error('Failed to save results:', err)
+        toast('結果の保存に失敗しました。通信環境を確認してください。')
       }
       setPhase('done')
       return
@@ -144,32 +137,7 @@ export default function QuizTyping() {
   }
 
   if (phase === 'done') {
-    const total = deck.length
-    const pct = total > 0 ? Math.round((stats.correct / total) * 100) : 0
-    return (
-      <div className="min-h-screen flex flex-col">
-        <TopBar title="結果" onBack={() => navigate('/student')} />
-        <div className="flex-1 flex items-center justify-center">
-          <div className="text-center px-5 py-10">
-            <div className="text-6xl mb-4">{pct >= 80 ? '🎉' : pct >= 50 ? '📚' : '💪'}</div>
-            <h2 className="text-xl font-bold mb-2">
-              {pct >= 80 ? 'すばらしい！' : pct >= 50 ? 'いい調子！' : 'もう少し頑張ろう！'}
-            </h2>
-            <div className="text-5xl font-bold text-accent2 my-4">
-              {pct}<span className="text-xl text-gray-400">%</span>
-            </div>
-            <div className="flex justify-center gap-8 mb-8">
-              <div><div className="text-2xl font-bold text-green-500">{stats.correct}</div><div className="text-[11px] text-gray-400">正解</div></div>
-              <div><div className="text-2xl font-bold text-red-500">{stats.wrong}</div><div className="text-[11px] text-gray-400">不正解</div></div>
-              <div><div className="text-2xl font-bold">{total}</div><div className="text-[11px] text-gray-400">出題数</div></div>
-            </div>
-            <button onClick={() => navigate('/student')} className="bg-accent2 text-white px-8 py-3 rounded-xl font-semibold hover:opacity-90 active:scale-95 transition-all">
-              ホームに戻る
-            </button>
-          </div>
-        </div>
-      </div>
-    )
+    return <ResultScreen stats={stats} total={deck.length} onHome={() => navigate('/student')} />
   }
 
   const word = deck[idx]
@@ -224,6 +192,7 @@ export default function QuizTyping() {
             onChange={e => setUserAnswer(e.target.value)}
             disabled={answered}
             placeholder="英単語を入力..."
+            aria-label="英単語を入力"
             autoComplete="off"
             autoCapitalize="none"
             spellCheck="false"
@@ -273,13 +242,3 @@ export default function QuizTyping() {
   )
 }
 
-function TopBar({ title, onBack, right }) {
-  return (
-    <div className="sticky top-0 z-50 bg-[#f5f2ed]/90 backdrop-blur border-b border-gray-200
-      px-5 py-3 flex items-center gap-3">
-      <button onClick={onBack} className="text-xl text-accent2 px-1">←</button>
-      <h1 className="text-sm font-semibold text-accent flex-1">{title}</h1>
-      {right && <span className="text-xs text-gray-400">{right}</span>}
-    </div>
-  )
-}

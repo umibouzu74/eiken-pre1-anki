@@ -1,12 +1,14 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
+import { useToast } from '../Toast'
 import { collection, query, where, getDocs, doc as docRef, setDoc, serverTimestamp } from 'firebase/firestore'
 import { db } from '../../lib/firebase'
 
 export default function Dashboard() {
   const navigate = useNavigate()
   const { teacher, logout } = useAuth()
+  const toast = useToast()
   const [classes, setClasses] = useState([])
   const [loading, setLoading] = useState(true)
   const [showCreate, setShowCreate] = useState(false)
@@ -41,6 +43,7 @@ export default function Dashboard() {
       setClasses(classList)
     } catch (err) {
       console.error('Failed to load classes:', err)
+      toast('クラス一覧の読み込みに失敗しました')
     } finally {
       setLoading(false)
     }
@@ -49,9 +52,17 @@ export default function Dashboard() {
   async function handleCreateClass(e) {
     e.preventDefault()
     if (!newClassName.trim() || !newClassCode.trim()) return
+    const code = newClassCode.trim().toLowerCase().replace(/\s+/g, '')
+    if (code.length < 3 || code.length > 30) {
+      toast('クラスコードは3〜30文字にしてください')
+      return
+    }
+    if (!/^[a-z0-9-]+$/.test(code)) {
+      toast('クラスコードは半角英数字とハイフンのみ使用できます')
+      return
+    }
     setCreating(true)
     try {
-      const code = newClassCode.trim().toLowerCase().replace(/\s+/g, '')
       await setDoc(docRef(db, 'classes', code), {
         name: newClassName.trim(),
         teacherUid: teacher.uid,
@@ -64,6 +75,7 @@ export default function Dashboard() {
       await loadClasses()
     } catch (err) {
       console.error('Failed to create class:', err)
+      toast('クラスの作成に失敗しました')
     } finally {
       setCreating(false)
     }
