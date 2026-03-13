@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useProgress } from '../../hooks/useProgress'
 import { useAuth } from '../auth/AuthContext'
-import { updateSRS, createSRSCard } from '../../lib/srs'
+import { updateSRS, createSRSCard, getStatusAfterAnswer } from '../../lib/srs'
 import { shuffle } from '../../lib/utils'
 import { doc, collection, setDoc, serverTimestamp } from 'firebase/firestore'
 import { db } from '../../lib/firebase'
@@ -16,7 +16,7 @@ export default function Flashcard() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const { student } = useAuth()
-  const { updateWord, getWordProgress } = useProgress()
+  const { updateWord, getWordProgress, getDueWordIds, getWeakWordIds } = useProgress()
   const toast = useToast()
 
   const [phase, setPhase] = useState('select') // 'select' | 'study' | 'done'
@@ -27,14 +27,45 @@ export default function Flashcard() {
   const [stats, setStats] = useState({ correct: 0, wrong: 0 })
   const detailsRef = useRef([])
 
-  // Auto-start if URL has range params
+  const [studyMode, setStudyMode] = useState('normal') // 'normal' | 'review' | 'weak'
+
+  // Auto-start if URL has range params or special mode
   useEffect(() => {
+    const mode = searchParams.get('mode')
+    if (mode === 'review') {
+      handleStartSpecial('review', getDueWordIds())
+      return
+    }
+    if (mode === 'weak') {
+      handleStartSpecial('weak', getWeakWordIds())
+      return
+    }
     const from = searchParams.get('from')
     const to = searchParams.get('to')
     if (from && to) {
       handleStart(parseInt(from), parseInt(to), true, true)
     }
   }, [])
+
+  function handleStartSpecial(mode, wordIds) {
+    if (wordIds.length === 0) {
+      const msg = mode === 'review' ? '復習が必要な単語はありません' : '苦手な単語はありません'
+      alert(msg)
+      navigate('/student')
+      return
+    }
+    const idSet = new Set(wordIds)
+    let selected = words.filter(w => idSet.has(w.i))
+    selected = shuffle(selected)
+    setDeck(selected)
+    setRange({ from: 0, to: 0 })
+    setIdx(0)
+    setFlipped(false)
+    setStats({ correct: 0, wrong: 0 })
+    detailsRef.current = []
+    setStudyMode(mode)
+    setPhase('study')
+  }
 
   function handleStart(from, to, doShuffle, excludeMastered) {
     let selected = words.filter(w => w.i >= from && w.i <= to)
@@ -69,9 +100,8 @@ export default function Flashcard() {
     const existing = getWordProgress(word.i)
     const srs = updateSRS(existing?.srs || createSRSCard(), quality)
 
-    let status = 'learning'
+    const status = getStatusAfterAnswer(quality, srs)
     if (quality >= 2) {
-      status = srs.interval >= 21 ? 'mastered' : 'learning'
       setStats(s => ({ ...s, correct: s.correct + 1 }))
     } else {
       setStats(s => ({ ...s, wrong: s.wrong + 1 }))
@@ -95,7 +125,7 @@ export default function Flashcard() {
         await setDoc(ref, {
           studentId: student.id,
           classCode: student.classCode,
-          mode: 'flashcard',
+          mode: studyMode !== 'normal' ? studyMode : 'flashcard',
           rangeFrom: range.from,
           rangeTo: range.to,
           correct: finalCorrect,
@@ -161,7 +191,7 @@ export default function Flashcard() {
   return (
     <div className="min-h-screen">
       <TopBar
-        title="フラッシュカード"
+        title={studyMode === 'review' ? "復習モード" : studyMode === 'weak' ? "苦手克服" : "フラッシュカード"}
         onBack={() => navigate('/student')}
         right={`${idx + 1} / ${deck.length}`}
       />

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useProgress } from '../../hooks/useProgress'
-import { updateSRS, createSRSCard } from '../../lib/srs'
+import { updateSRS, createSRSCard, getStatusAfterAnswer } from '../../lib/srs'
 import { shuffle, getAnswer } from '../../lib/utils'
 import { doc, collection, setDoc, serverTimestamp } from 'firebase/firestore'
 import { db } from '../../lib/firebase'
@@ -83,7 +83,7 @@ export default function QuizTyping() {
     const existing = getWordProgress(word.i)
     const srs = updateSRS(existing?.srs || createSRSCard(), correct ? 2 : 0)
     await updateWord(word.i, {
-      s: correct ? (srs.interval >= 21 ? 'mastered' : 'learning') : 'learning',
+      s: getStatusAfterAnswer(correct ? 2 : 0, srs),
       c: (existing?.c || 0) + (correct ? 1 : 0),
       w: (existing?.w || 0) + (correct ? 0 : 1),
       srs,

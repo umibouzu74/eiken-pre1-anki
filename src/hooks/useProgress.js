@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore'
 import { db } from '../lib/firebase'
 import { useAuth } from '../components/auth/AuthContext'
+import { isDueForReview, isWeakWord } from '../lib/srs'
 
 /**
  * Hook to manage student word progress in Firestore
@@ -68,12 +69,37 @@ export function useProgress() {
   // Get stats
   const getStats = useCallback(() => {
     const words = Object.values(progress)
+    const dueForReview = words.filter(w =>
+      (w.s === 'learning' || w.s === 'mastered') && w.srs && isDueForReview(w.srs)
+    ).length
     return {
       mastered: words.filter(w => w.s === 'mastered').length,
       learning: words.filter(w => w.s === 'learning').length,
       total: 1680,
+      dueForReview,
       get remaining() { return this.total - this.mastered - this.learning },
     }
+  }, [progress])
+
+  // Get word IDs that are due for review
+  const getDueWordIds = useCallback(() => {
+    return Object.entries(progress)
+      .filter(([, w]) =>
+        (w.s === 'learning' || w.s === 'mastered') && w.srs && isDueForReview(w.srs)
+      )
+      .map(([id]) => parseInt(id))
+  }, [progress])
+
+  // Get weak word IDs (high wrong rate), sorted by wrongness
+  const getWeakWordIds = useCallback(() => {
+    return Object.entries(progress)
+      .filter(([, w]) => isWeakWord(w))
+      .sort(([, a], [, b]) => {
+        const aRate = (a.w || 0) / ((a.c || 0) + (a.w || 0))
+        const bRate = (b.w || 0) / ((b.c || 0) + (b.w || 0))
+        return bRate - aRate
+      })
+      .map(([id]) => parseInt(id))
   }, [progress])
 
   // Get progress for a specific word
@@ -81,5 +107,5 @@ export function useProgress() {
     return progress[String(wordId)] || null
   }, [progress])
 
-  return { progress, loading, updateWord, getStats, getWordProgress }
+  return { progress, loading, updateWord, getStats, getWordProgress, getDueWordIds, getWeakWordIds }
 }
