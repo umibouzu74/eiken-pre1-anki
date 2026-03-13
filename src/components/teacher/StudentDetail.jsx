@@ -52,14 +52,7 @@ export default function StudentDetail() {
     }
   }
 
-  if (loading) {
-    return <div className="min-h-screen flex items-center justify-center text-gray-400">読み込み中...</div>
-  }
-
-  if (!student) {
-    return <div className="min-h-screen flex items-center justify-center text-gray-400">生徒が見つかりません</div>
-  }
-
+  // All hooks must be called before any early returns (React rules of hooks)
   const { mastered, learning, remaining } = useMemo(() => {
     const allWords = Object.values(progress)
     const m = allWords.filter(w => w.s === 'mastered').length
@@ -97,6 +90,24 @@ export default function StudentDetail() {
     }), [progress])
 
   const modeLabels = { flashcard: 'フラッシュカード', quiz4: '4択クイズ', quizType: 'タイピング' }
+
+  if (loading) {
+    return <div className="min-h-screen flex items-center justify-center text-gray-400">読み込み中...</div>
+  }
+
+  if (!student) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center text-gray-400 gap-4">
+        <p>生徒が見つかりません</p>
+        <button
+          onClick={() => navigate('/teacher')}
+          className="text-sm text-accent2 hover:underline"
+        >
+          ダッシュボードに戻る
+        </button>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen">
