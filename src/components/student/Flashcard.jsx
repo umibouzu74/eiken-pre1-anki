@@ -1,20 +1,26 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useProgress } from '../../hooks/useProgress'
+import { useAuth } from '../auth/AuthContext'
 import { updateSRS, createSRSCard } from '../../lib/srs'
+import { doc, collection, setDoc, serverTimestamp } from 'firebase/firestore'
+import { db } from '../../lib/firebase'
 import words from '../../data/words.json'
 import RangeSelector from './RangeSelector'
 
 export default function Flashcard() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
+  const { student } = useAuth()
   const { updateWord, getWordProgress } = useProgress()
 
   const [phase, setPhase] = useState('select') // 'select' | 'study' | 'done'
   const [deck, setDeck] = useState([])
+  const [range, setRange] = useState({ from: 0, to: 0 })
   const [idx, setIdx] = useState(0)
   const [flipped, setFlipped] = useState(false)
   const [stats, setStats] = useState({ correct: 0, wrong: 0 })
+  const detailsRef = useRef([])
 
   // Auto-start if URL has range params
   useEffect(() => {
@@ -44,9 +50,11 @@ export default function Flashcard() {
       }
     }
     setDeck(selected)
+    setRange({ from, to })
     setIdx(0)
     setFlipped(false)
     setStats({ correct: 0, wrong: 0 })
+    detailsRef.current = []
     setPhase('study')
   }
 
@@ -74,7 +82,29 @@ export default function Flashcard() {
       srs,
     })
 
+    detailsRef.current.push({ wordId: word.i, correct: quality >= 2 })
+
     if (idx + 1 >= deck.length) {
+      // Save result to Firestore
+      const finalCorrect = stats.correct + (quality >= 2 ? 1 : 0)
+      const finalWrong = stats.wrong + (quality < 2 ? 1 : 0)
+      try {
+        const ref = doc(collection(db, 'results'))
+        await setDoc(ref, {
+          studentId: student.id,
+          classCode: student.classCode,
+          mode: 'flashcard',
+          rangeFrom: range.from,
+          rangeTo: range.to,
+          correct: finalCorrect,
+          wrong: finalWrong,
+          total: deck.length,
+          details: detailsRef.current,
+          completedAt: serverTimestamp(),
+        })
+      } catch (err) {
+        console.error('Failed to save results:', err)
+      }
       setPhase('done')
     } else {
       setIdx(idx + 1)

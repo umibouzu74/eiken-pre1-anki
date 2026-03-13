@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import { useProgress } from '../../hooks/useProgress'
+import { useAssignments } from '../../hooks/useAssignments'
 import words from '../../data/words.json'
 
 const UNIT_SIZE = 50
@@ -10,7 +11,9 @@ export default function StudentHome() {
   const navigate = useNavigate()
   const { student, logout } = useAuth()
   const { getStats, loading } = useProgress()
+  const { assignments, loading: assignLoading } = useAssignments(student?.classCode)
   const stats = getStats()
+  const activeAssignments = assignments.filter(a => a.active)
 
   if (loading) {
     return <div className="min-h-screen flex items-center justify-center text-gray-400">読み込み中...</div>
@@ -50,7 +53,45 @@ export default function StudentHome() {
           </div>
         </div>
 
-        {/* TODO: Assignments section (Phase 3) */}
+        {/* Assignments */}
+        {!assignLoading && activeAssignments.length > 0 && (
+          <>
+            <div className="text-xs font-semibold text-gray-500 mb-3 tracking-wide flex items-center gap-2">
+              宿題
+              <div className="flex-1 h-px bg-gray-200" />
+            </div>
+            <div className="space-y-3 mb-8">
+              {activeAssignments.map(a => {
+                const modeMap = { flashcard: '/student/flashcard', quiz4: '/student/quiz4', quizType: '/student/typing' }
+                const modeLabel = { flashcard: 'フラッシュカード', quiz4: '4択クイズ', quizType: 'タイピング', any: '自由' }
+                const path = a.mode === 'any'
+                  ? `/student/flashcard?from=${a.rangeFrom}&to=${a.rangeTo}`
+                  : `${modeMap[a.mode]}?from=${a.rangeFrom}&to=${a.rangeTo}`
+                return (
+                  <div
+                    key={a.id}
+                    onClick={() => navigate(path)}
+                    className="bg-white rounded-xl p-4 shadow-sm cursor-pointer border-l-4 border-accent2
+                      hover:-translate-y-0.5 hover:shadow-md active:scale-[0.98] transition-all"
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <h3 className="text-sm font-semibold">{a.title}</h3>
+                      <span className="text-[10px] bg-accent2/10 text-accent2 px-2 py-0.5 rounded-full">
+                        {modeLabel[a.mode] || a.mode}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-3 text-xs text-gray-400">
+                      <span>範囲: {a.rangeFrom}–{a.rangeTo}</span>
+                      {a.dueDate && (
+                        <span>期限: {a.dueDate.toDate ? a.dueDate.toDate().toLocaleDateString('ja-JP') : a.dueDate}</span>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </>
+        )}
 
         {/* Study modes */}
         <div className="text-xs font-semibold text-gray-500 mb-3 tracking-wide flex items-center gap-2">
