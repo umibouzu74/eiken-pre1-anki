@@ -86,10 +86,15 @@ export function AuthProvider({ children }) {
       // Returning student → update UID and activity
       const existingDoc = snap.docs[0]
       studentData = { id: existingDoc.id, ...existingDoc.data() }
-      await updateDoc(doc(db, 'students', existingDoc.id), {
-        firebaseUid: firebaseUser.uid,
-        lastActiveAt: serverTimestamp(),
-      })
+      try {
+        await updateDoc(doc(db, 'students', existingDoc.id), {
+          firebaseUid: firebaseUser.uid,
+          lastActiveAt: serverTimestamp(),
+        })
+      } catch (e) {
+        console.error('Student update failed:', e)
+        throw new Error('ログインに失敗しました。もう一度お試しください。')
+      }
     }
 
     // Save to session
